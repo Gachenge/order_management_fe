@@ -37,6 +37,7 @@ const AllOrders: React.FC = () => {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showChart, setShowChart] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -163,6 +164,10 @@ const AllOrders: React.FC = () => {
     );
   };
   
+  const handleShowChart = () => {
+    setShowChart(true);
+  };
+
   const handleUpdateOrderWrapper = async (updatedFormData: EditFormData, orderId: number): Promise<void> => {
     try {
       setUpdateLoading(true);
@@ -220,6 +225,11 @@ const AllOrders: React.FC = () => {
   return (
     <div>
       <h2 style={{ textAlign: 'center' }}>All Orders</h2>
+      <button type="button" onClick={handleShowChart}>
+        Show Chart
+      </button>
+      
+      {showChart && <OrderBarChart orders={orders} products={products} customers={customers} />}
 
       {loading || customersLoading || productsLoading ? (
         <p>Loading orders...</p>

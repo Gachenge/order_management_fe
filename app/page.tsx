@@ -4,7 +4,9 @@ import OrderForm from './OrderForm/page';
 import OrderLineGraph from './components/OrderLineGraph';
 import PurchaseHistory from './PurchaseHistory/page';
 import AllOrders from './AllOrders/page';
-import OrderBarChart from './components/barchart';
+import OrderBarChart from './components/barchart'
+import handleShowChart from './AllOrders/page'
+
 
 export default function Home() {
   const [orders, setOrders] = useState([]);
@@ -17,30 +19,71 @@ export default function Home() {
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [showChart, setShowChart] = useState(false); // Move this line inside the component
 
   useEffect(() => {
     const fetchOrders = async () => {
-      // ... (existing fetchOrders code)
+      try {
+        const response = await fetch('https://gachenge.pythonanywhere.com/orders');
+        if (!response.ok) {
+          throw new Error('Failed to fetch orders');
+        }
+
+        const data = await response.json();
+        setOrders(data);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+        setOrderError('Failed to fetch orders. Please try again later.');
+      } finally {
+        setOrderLoading(false);
+      }
     };
 
     const fetchCustomers = async () => {
-      // ... (existing fetchCustomers code)
+      try {
+        const response = await fetch('https://gachenge.pythonanywhere.com/customers');
+        if (!response.ok) {
+          throw new Error('Failed to fetch customers');
+        }
+
+        const data = await response.json();
+        setCustomers(data);
+      } catch (error) {
+        console.error('Failed to fetch customers:', error);
+        setCustomerError('Failed to fetch customers. Please try again later.');
+      } finally {
+        setCustomerLoading(false);
+      }
     };
 
     const fetchProducts = async () => {
-      // ... (existing fetchProducts code)
+      try {
+        const responseProducts = await fetch('https://gachenge.pythonanywhere.com/products');
+        if (!responseProducts.ok) {
+          throw new Error('Failed to fetch products');
+        }
+
+        const dataProducts = await responseProducts.json();
+        const productNames = dataProducts.products || [];
+        const formattedProducts = productNames.map((name: string, index: number) => ({
+          id: index + 1,
+          name,
+        }));
+        setProducts(formattedProducts);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setError('Failed to fetch products. Please try again later.');
+      } finally {
+        setProductsLoading(false);
+      }
     };
+
 
     fetchOrders();
     fetchCustomers();
-    fetchProducts();
 
   }, []);
 
-  const handleShowChart = () => {
-    setShowChart(true);
-  };
+  console.log(orders)
 
   return (
     <main>
@@ -54,13 +97,6 @@ export default function Home() {
             <p>Loading Order Form...</p>
           ) : (
             <OrderForm />
-          )}
-          {orderError && <p style={{ color: 'red' }}>{orderError}</p>}
-          {showAllOrders && <OrderBarChart orders={orders} products={products} customers={customers} />}
-          {showAllOrders && (
-            <button type="button" onClick={handleShowChart}>
-              Show Chart
-            </button>
           )}
         </div>
         <div style={{ flex: 1, textAlign: 'center' }}>
