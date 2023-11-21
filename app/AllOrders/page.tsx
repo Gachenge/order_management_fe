@@ -171,26 +171,25 @@ const AllOrders: React.FC = () => {
   const handleUpdateOrderWrapper = async (updatedFormData: EditFormData, orderId: number): Promise<void> => {
     try {
       setUpdateLoading(true);
-
-
-      const response = await fetch(`https://gachenge.pythonanywhere.com/orders/${editingOrderId}`, {
+      console.log(updatedFormData)
+  
+      const response = await fetch(`https://gachenge.pythonanywhere.com/orders/${updatedFormData}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updatedFormData),
+        body: JSON.stringify(orderId),
       });
-
-      console.log('Response:', response);
-
+  
       if (!response.ok) {
-        throw new Error(`Failed to update order: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to update order: ${response.status} - ${errorText}`);
       }
-
+  
       fetchData();
     } catch (error) {
       console.error('Error updating order:', error);
-      setUpdateError('Failed to update order. Please try again later.');
+      setUpdateError(error.message || 'Failed to update order. Please try again later.');
     } finally {
       setUpdateLoading(false);
       setEditingOrderId(null);

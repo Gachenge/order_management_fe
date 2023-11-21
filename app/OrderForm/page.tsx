@@ -18,6 +18,8 @@ const OrderForm: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -53,44 +55,47 @@ const OrderForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-  
+
     if (!customerEmail || !productId || !quantity) {
-      console.error('Please fill in all fields.');
+      setErrorMessage('Please fill in all fields.');
       return;
     }
-  
+
     try {
       const selectedCustomer = customers.find((customer) => customer.email === customerEmail);
-  
+
       const response = await fetch('https://gachenge.pythonanywhere.com/orders', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            customer_id: selectedCustomer?.id,
-            product_id: productId,
-            quantity: quantity,
+          customer_id: selectedCustomer?.id,
+          product_id: productId,
+          quantity: quantity,
         }),
-        });
-        console.log(response)
+      });
 
-  
       if (!response.ok) {
         throw new Error('Failed to create the order. Please try again.');
       }
-  
-      const data = await response.json();
-      console.log('Order created:', data);
+
+      setSuccessMessage('Order created successfully!');
+      setErrorMessage(null);
+
+      // Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       if (error instanceof Error) {
-        console.error(error.message);
+        setErrorMessage(error.message);
       } else {
-        console.error('An unknown error occurred');
+        setErrorMessage('An unknown error occurred');
       }
+      setSuccessMessage(null);
     }
-  };
-  
+  };  
 
   return (
     <div style={{ flex: 1, textAlign: 'left' }}>
@@ -153,10 +158,13 @@ const OrderForm: React.FC = () => {
           <br />
   
           <button type="submit">Create Order</button>
-        </form>
-      )}
-    </div>
+
+      {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
+      {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
+    </form>
+    )}
+  </div>
   );
-}
+};
 
 export default OrderForm;
