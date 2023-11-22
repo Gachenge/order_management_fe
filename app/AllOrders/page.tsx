@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 import UpdateOrderForm from '../editOrder/page';
-import { EditFormData, UpdateOrderFormProps } from '../UpdateOrderForm/page';
+import { EditFormData } from '../UpdateOrderForm/page';
 import OrderBarChart from '../components/barchart';
 
 interface Order {
@@ -14,11 +14,13 @@ interface Order {
 
 interface Customer {
   id: number;
+  customer_id: number;
   email: string;
 }
 
 interface Product {
   id: number;
+  product_id: number;
   name: string;
 }
 
@@ -31,7 +33,6 @@ const AllOrders: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customersLoading, setCustomersLoading] = useState<boolean>(true);
   const [productsLoading, setProductsLoading] = useState<boolean>(true);
-  const [editFormData, setEditFormData] = useState<EditFormData>();
   const [editFormDataArray, setEditFormDataArray] = useState<EditFormData[]>([]);
   const [updateLoading, setUpdateLoading] = useState<boolean>(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -53,7 +54,6 @@ const AllOrders: React.FC = () => {
       setError('Failed to fetch orders. Please try again later.');
     } finally {
       setOrderLoading(false);
-      setLoading(false);
     }
   };
 
@@ -65,11 +65,15 @@ const AllOrders: React.FC = () => {
           throw new Error('Failed to fetch customers');
         }
 
-        const { customers: customersArray } = await response.json();
+        const responseData = await response.json();
 
-        const mappedCustomers = customersArray.map((email: string, index: number) => ({
-          id: index + 1,
-          email,
+        if (!Array.isArray(responseData.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+
+        const mappedCustomers = responseData.data.map((customer: Customer) => ({
+          id: customer.customer_id,
+          email: customer.email,
         }));
 
         setCustomers(mappedCustomers);
@@ -89,17 +93,21 @@ const AllOrders: React.FC = () => {
         }
 
         const dataProducts = await responseProducts.json();
-        const productNames = dataProducts.products || [];
-        const formattedProducts = productNames.map((name: string, index: number) => ({
-          id: index + 1,
-          name,
+        if (!Array.isArray(dataProducts.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+        const mappedProducts = dataProducts.data.map((product: Product) => ({
+          id: product.product_id,
+          name: product.name,
         }));
-        setProducts(formattedProducts);
+
+        setProducts(mappedProducts);
       } catch (error) {
         console.error('Error fetching products:', error);
         setError('Failed to fetch products. Please try again later.');
       } finally {
         setProductsLoading(false);
+        setLoading(false);
       }
     };
 
@@ -111,21 +119,18 @@ const AllOrders: React.FC = () => {
   const handleEditClick = (orderId: number) => {
     const orderToEdit: Order | undefined = orders.find((order) => order.order_id === orderId);
 
-    setEditFormDataArray((prevEditFormDataArray: EditFormData[]) => {
-      setIsEditing(true);
-      setEditingOrderId(orderId);
+    if (orderToEdit) {
+      const { customer_id, product_id, quantity } = orderToEdit;
+      const editFormDataItem: EditFormData = {
+        customer_email: customers.find((customer) => customer.id === customer_id)?.email || '',
+        product_name: products.find((product) => product.id === product_id)?.name || '',
+        quantity,
+      };
 
-      if (orderToEdit) {
-        const { customer_id, product_id, quantity } = orderToEdit;
-        return [
-          ...prevEditFormDataArray,
-          { customer_email: customers.find((customer) => customer.id === customer_id)?.email || '', product_name: products.find((product) => product.id === product_id)?.name || '', quantity },
-        ];
-      }
+      setEditFormDataArray((prevEditFormDataArray: EditFormData[]) => [...prevEditFormDataArray, editFormDataItem]);
+    }
 
-      return prevEditFormDataArray;
-    });
-
+    setIsEditing(true);
     setEditingOrderId(orderId);
   };
 
@@ -143,12 +148,12 @@ const AllOrders: React.FC = () => {
                   customer_email: editFormData.customer_email,
                   product_name: editFormData.product_name,
                   quantity: editFormData.quantity,
-                }) 
+                })
               }
             >
               Update Order
             </button>
-  
+
             <UpdateOrderForm
               orderId={order.order_id}
               onUpdate={(updatedData: EditFormData) => handleUpdateOrderWrapper(order.order_id, updatedData)}
@@ -163,7 +168,7 @@ const AllOrders: React.FC = () => {
       </>
     );
   };
-  
+
   const handleShowChart = () => {
     setShowChart(true);
   };
@@ -171,21 +176,20 @@ const AllOrders: React.FC = () => {
   const handleUpdateOrderWrapper = async (updatedFormData: EditFormData, orderId: number): Promise<void> => {
     try {
       setUpdateLoading(true);
-      console.log(updatedFormData)
-  
-      const response = await fetch(`https://gachenge.pythonanywhere.com/orders/${updatedFormData}`, {
+
+      const response = await fetch(`https://gachenge.pythonanywhere.com/orders/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderId),
+        body: JSON.stringify(updatedFormData),
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to update order: ${response.status} - ${errorText}`);
       }
-  
+
       fetchData();
     } catch (error) {
       console.error('Error updating order:', error);
@@ -198,7 +202,7 @@ const AllOrders: React.FC = () => {
 
   const handleDeleteClick = async (orderId: number) => {
     const shouldDelete = window.confirm('Are you sure you want to delete this order?');
-  
+
     if (shouldDelete) {
       try {
         const response = await fetch(`https://gachenge.pythonanywhere.com/orders/${orderId}`, {
@@ -207,17 +211,18 @@ const AllOrders: React.FC = () => {
             'Content-Type': 'application/json',
           },
         });
-  
+
         if (!response.ok) {
           throw new Error(`Failed to delete order: ${response.statusText}`);
         }
-  
+
         fetchData();
       } catch (error) {
         console.error('Error deleting order:', error);
+        setError('Failed to delete order. Please try again later.');
       }
     }
-  };  
+  };
 
   const sortedOrders = [...orders].sort((a, b) => moment(b.created_at).diff(moment(a.created_at)));
 
@@ -227,7 +232,7 @@ const AllOrders: React.FC = () => {
       <button type="button" onClick={handleShowChart}>
         Show Chart
       </button>
-      
+
       {showChart && <OrderBarChart orders={orders} products={products} customers={customers} />}
 
       {loading || customersLoading || productsLoading ? (

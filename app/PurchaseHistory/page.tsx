@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import moment from 'moment';
 
 interface Order {
+  product_name: string;
   order_id: number;
   product_id: number;
   quantity: number;
@@ -9,12 +10,14 @@ interface Order {
 }
 
 interface Customer {
-  id: number;
+  id: number,
+  customer_id: number;
   email: string;
 }
 
 interface Product {
-  id: number;
+  id: number,
+  product_id: number;
   name: string;
 }
 
@@ -37,17 +40,20 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
         if (!response.ok) {
           throw new Error('Failed to fetch customers');
         }
-
-        const { customers: customersArray } = await response.json();
-
-        const mappedCustomers = customersArray.map((email: string, index: number) => ({
-          id: index + 1,
-          email,
+  
+        const responseData = await response.json();
+  
+        if (!Array.isArray(responseData.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+  
+        const mappedCustomers = responseData.data.map((customer: Customer) => ({
+          id: customer.customer_id,
+          email: customer.email,
         }));
-
+  
         setLocalCustomers(mappedCustomers);
       } catch (error) {
-        console.error('Error fetching customers:', error);
         setError('Failed to fetch customers. Please try again later.');
       } finally {
         setLoading(false);
@@ -62,12 +68,15 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
         }
 
         const dataProducts = await responseProducts.json();
-        const productNames = dataProducts.products || [];
-        const formattedProducts = productNames.map((name: string, index: number) => ({
-          id: index + 1,
-          name,
+        if (!Array.isArray(dataProducts.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+        const mappedProducts = dataProducts.data.map((product: Product) => ({
+          id: product.product_id,
+          name: product.name,
         }));
-        setProducts(formattedProducts);
+
+        setProducts(mappedProducts);
       } catch (error) {
         console.error('Error fetching products:', error);
         setError('Failed to fetch products. Please try again later.');
@@ -87,6 +96,7 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
         }
 
         const response = await fetch(`https://gachenge.pythonanywhere.com/customers/${selectedCustomer}/purchase-history`);
+        console.log('Backend response:', response);
         if (!response.ok) {
           throw new Error('Failed to fetch purchase history');
         }
@@ -94,7 +104,6 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
         const data = await response.json();
         setPurchaseHistory(data.purchase_history || []);
       } catch (error) {
-        console.error('Error fetching purchase history:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
       } finally {
         setLoading(false);
@@ -103,7 +112,6 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
 
     fetchPurchaseHistory();
   }, [selectedCustomer]);
-  console.log(selectedCustomer)
 
   return (
     <div>
@@ -148,7 +156,7 @@ const PurchaseHistory: React.FC<PurchaseHistoryProps> = ({ customers }) => {
                   .map((order) => (
                     <tr key={order.order_id}>
                       <td>
-                        {products.find((product) => product.id === order.product_id)?.name || 'Unknown Product'}
+                        {order.product_name ? order.product_name : 'Unknown Product'}
                       </td>
                       <td>{order.quantity}</td>
                       <td>{moment(order.created_at).format('LLL')}</td>

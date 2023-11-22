@@ -4,9 +4,20 @@ import OrderForm from './OrderForm/page';
 import OrderLineGraph from './components/OrderLineGraph';
 import PurchaseHistory from './PurchaseHistory/page';
 import AllOrders from './AllOrders/page';
-import OrderBarChart from './components/barchart'
-import handleShowChart from './AllOrders/page'
+// import OrderBarChart from './components/barchart'
+// import handleShowChart from './AllOrders/page'
 
+interface Customer {
+  id: number;
+  customer_id: number,
+  email: string;
+}
+
+interface Product {
+  id: number;
+  product_id: number,
+  name: string;
+}
 
 export default function Home() {
   const [orders, setOrders] = useState([]);
@@ -44,11 +55,20 @@ export default function Home() {
         if (!response.ok) {
           throw new Error('Failed to fetch customers');
         }
-
-        const data = await response.json();
-        setCustomers(data);
+  
+        const responseData = await response.json();
+  
+        if (!Array.isArray(responseData.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+  
+        const mappedCustomers = responseData.data.map((customer: Customer) => ({
+          id: customer.customer_id,
+          email: customer.email,
+        }));
+  
+        setCustomers(mappedCustomers);
       } catch (error) {
-        console.error('Failed to fetch customers:', error);
         setCustomerError('Failed to fetch customers. Please try again later.');
       } finally {
         setCustomerLoading(false);
@@ -58,22 +78,24 @@ export default function Home() {
     const fetchProducts = async () => {
       try {
         const responseProducts = await fetch('https://gachenge.pythonanywhere.com/products');
+        console.log(responseProducts)
         if (!responseProducts.ok) {
           throw new Error('Failed to fetch products');
         }
 
         const dataProducts = await responseProducts.json();
-        const productNames = dataProducts.products || [];
-        const formattedProducts = productNames.map((name: string, index: number) => ({
-          id: index + 1,
-          name,
+        if (!Array.isArray(dataProducts.data)) {
+          throw new Error('Unexpected format: data is not an array');
+        }
+        const mappedProducts = dataProducts.data.map((product: Product) => ({
+          id: product.product_id,
+          name: product.name,
         }));
-        setProducts(formattedProducts);
+
+        setProducts(mappedProducts);
       } catch (error) {
         console.error('Error fetching products:', error);
         setError('Failed to fetch products. Please try again later.');
-      } finally {
-        setProductsLoading(false);
       }
     };
 
@@ -83,7 +105,6 @@ export default function Home() {
 
   }, []);
 
-  console.log(orders)
 
   return (
     <main>
